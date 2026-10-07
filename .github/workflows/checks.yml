@@ -1,1 +1,40 @@
-.github/workflows/checks.yml
+name: Reporter checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node: [22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Generate report with intentional failures
+        shell: bash
+        run: |
+          set +e
+          npx playwright test -c examples/playwright.config.cjs
+          result=$?
+          set -e
+          test "$result" -eq 1
+          node -e "const d=require('./integration-report/report.json');const c=d.tests.reduce((a,t)=>(a[t.outcome]=(a[t.outcome]||0)+1,a),{});if(d.tests.length!==15||c.expected!==6||c.unexpected!==3||c.flaky!==3||c.skipped!==3)process.exit(1);"
+
+      - run: npm run test:ui
+
+      - run: npm pack --dry-run
