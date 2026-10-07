@@ -1,0 +1,10 @@
+const { JSDOM } = require('jsdom');const fs=require('node:fs');const assert=require('node:assert/strict');
+const dom = new JSDOM(fs.readFileSync('integration-report/index.html','utf8'),{runScripts:'dangerously'});const d=dom.window.document;
+assert.equal(d.querySelectorAll('.cards .card').length,4);assert.equal(d.querySelectorAll('.row').length,15);
+const status=d.getElementById('status');status.value='flaky';status.dispatchEvent(new dom.window.Event('change'));assert.equal(d.querySelectorAll('.row').length,3);
+d.querySelector('.row').click();const attempts=d.getElementById('attempt');assert.equal(attempts.options.length,2);attempts.value='0';attempts.dispatchEvent(new dom.window.Event('change'));d.querySelector('[data-tab="errors"]').click();assert.ok(d.querySelector('#detail pre.error'));
+d.querySelector('[data-view="speed"]').click();assert.equal(d.querySelectorAll('tbody tr').length,15);
+d.querySelector('[data-view="assets"]').click();const report=JSON.parse(fs.readFileSync('integration-report/report.json'));assert.equal(d.querySelectorAll('.attachment').length,report.tests.reduce((n,t)=>n+t.attempts.reduce((s,a)=>s+a.attachments.length,0),0));
+d.getElementById('theme').click();assert.ok(d.body.classList.contains('dark'));
+d.querySelector('[data-view="tests"]').click();const search=d.getElementById('search');search.value='NO_MATCH';search.dispatchEvent(new dom.window.Event('input'));assert.equal(d.querySelectorAll('.row').length,0);
+console.log('UI: summary, filtering, retries, errors, speed, attachments, theme, empty search passed.');dom.window.close();
